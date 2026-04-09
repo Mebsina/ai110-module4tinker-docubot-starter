@@ -129,6 +129,10 @@ class DocuBot:
                 stemmed = self.stem(word)
                 if stemmed in text_lower:
                     score += 1
+        # Penalize top-level intro chunks (# Title) — they mention topics but don't
+        # explain them. Section chunks (## Heading) contain actual content, no penalty.
+        if text.lstrip().startswith("# ") and not text.lstrip().startswith("## "):
+            score = max(0, score - 1)
         return score
 
     def retrieve(self, query, top_k=3, min_score=2):
