@@ -131,18 +131,20 @@ class DocuBot:
                     score += 1
         return score
 
-    def retrieve(self, query, top_k=3):
+    def retrieve(self, query, top_k=3, min_score=2):
         """
         TODO (Phase 1):
         Use the index and scoring function to select top_k relevant document snippets.
 
         Return a list of (filename, text) sorted by score descending.
         Capped to one chunk per file so no single document dominates results.
+        Only returns chunks that meet min_score — below that threshold the
+        match is too weak to be meaningful evidence.
         """
         scored = []
         for filename, text in self.documents:
             score = self.score_document(query, text)
-            if score > 0:
+            if score >= min_score:
                 scored.append((score, filename, text))
         scored.sort(key=lambda x: x[0], reverse=True)
 
