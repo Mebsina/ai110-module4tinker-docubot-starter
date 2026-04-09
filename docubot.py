@@ -98,6 +98,17 @@ class DocuBot:
     # Scoring and Retrieval (Phase 1)
     # -----------------------------------------------------------
 
+    def stem(self, word):
+        """
+        Minimal suffix stripping to normalize word forms.
+        Strips common English suffixes so that e.g. 'generated' and
+        'generate' both reduce to 'generat' and match each other.
+        """
+        for suffix in ("ing", "tion", "ation", "ed", "er", "es", "ly", "s", "e"):
+            if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+                return word[:-len(suffix)]
+        return word
+
     def score_document(self, query, text):
         """
         TODO (Phase 1):
@@ -114,8 +125,10 @@ class DocuBot:
         score = 0
         for word in query.lower().split():
             word = word.strip(".,!?:;\"'()[]")
-            if word and word not in stopwords and word in text_lower:
-                score += 1
+            if word and word not in stopwords:
+                stemmed = self.stem(word)
+                if stemmed in text_lower:
+                    score += 1
         return score
 
     def retrieve(self, query, top_k=3):
@@ -124,6 +137,7 @@ class DocuBot:
         Use the index and scoring function to select top_k relevant document snippets.
 
         Return a list of (filename, text) sorted by score descending.
+        Capped to one chunk per file so no single document dominates results.
         """
         scored = []
         for filename, text in self.documents:
@@ -131,7 +145,16 @@ class DocuBot:
             if score > 0:
                 scored.append((score, filename, text))
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [(filename, text) for _, filename, text in scored[:top_k]]
+
+        seen = set()
+        results = []
+        for score, filename, text in scored:
+            if filename not in seen:
+                seen.add(filename)
+                results.append((filename, text))
+            if len(results) == top_k:
+                break
+        return results
 
     # -----------------------------------------------------------
     # Answering Modes
