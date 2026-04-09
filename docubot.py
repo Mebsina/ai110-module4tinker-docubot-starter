@@ -19,8 +19,9 @@ class DocuBot:
         self.docs_folder = docs_folder
         self.llm_client = llm_client
 
-        # Load documents into memory
-        self.documents = self.load_documents()  # List of (filename, text)
+        # Load documents into memory, then split into paragraphs
+        raw_docs = self.load_documents()        # List of (filename, full_text)
+        self.documents = self.chunk_documents(raw_docs)  # List of (filename, chunk)
 
         # Build a retrieval index (implemented in Phase 1)
         self.index = self.build_index(self.documents)
@@ -43,6 +44,26 @@ class DocuBot:
                 filename = os.path.basename(path)
                 docs.append((filename, text))
         return docs
+
+    def chunk_documents(self, raw_docs):
+        """
+        Splits each document into paragraph-sized chunks by splitting on blank lines.
+        Short chunks (under 30 chars, e.g. section headers) are prepended to the
+        next chunk so their label stays attached to the content that follows.
+        Returns a list of (filename, chunk) tuples.
+        """
+        chunks = []
+        for filename, text in raw_docs:
+            raw_chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
+            pending = ""
+            for chunk in raw_chunks:
+                if len(chunk) <= 30:
+                    pending = chunk
+                else:
+                    merged = (pending + "\n" + chunk).strip() if pending else chunk
+                    chunks.append((filename, merged))
+                    pending = ""
+        return chunks
 
     # -----------------------------------------------------------
     # Index Construction (Phase 1)
